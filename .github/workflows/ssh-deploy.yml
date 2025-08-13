@@ -29,10 +29,8 @@ jobs:
           # Script yang akan dijalankan di server
           script: |
             # Switch to root untuk fix permissions
-            sudo su - root -c "
-              chown -R deploy:www-data /var/www/${{ vars.WEBSITE_FOLDER }}
-              chmod -R 755 /var/www/${{ vars.WEBSITE_FOLDER }}
-            "
+            chown -R deploy:www-data /var/www/${{ vars.WEBSITE_FOLDER }}
+            chmod -R 755 /var/www/${{ vars.WEBSITE_FOLDER }}
             
             # Setup git safe directory
             git config --global --add safe.directory /var/www/${{ vars.WEBSITE_FOLDER }}
@@ -64,8 +62,6 @@ jobs:
             php artisan view:cache
             
             # Final permission fix
-            sudo su - root -c "
             chown -R www-data:www-data /var/www/${{ vars.WEBSITE_FOLDER }}
             chmod -R 775 /var/www/${{ vars.WEBSITE_FOLDER }}/storage
             chmod -R 775 /var/www/${{ vars.WEBSITE_FOLDER }}/bootstrap/cache
-            "
