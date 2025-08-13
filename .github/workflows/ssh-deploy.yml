@@ -76,6 +76,7 @@ jobs:
           username: ${{ secrets.SSH_USERNAME }}   # Username SSH
           port: ${{ secrets.SSH_PORT }}          # Port SSH (biasanya 22)
           key: ${{ secrets.SSH_KEY }}            # Private key SSH
+          passphrase: ${{ secrets.SSH_PASSPHRASE }} # Passphrase untuk private key (jika ada)
           # Script yang akan dijalankan di server
           script: |
             cd /var/www/${{ vars.WEBSITE_FOLDER }}  # Pindah ke direktori website
