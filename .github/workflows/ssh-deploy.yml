@@ -52,6 +52,8 @@ jobs:
             sed -i 's/# DB_PASSWORD=.*/DB_PASSWORD=${{ secrets.DB_PASSWORD }}/' .env
             
             # Update other environment variables if needed
+            sed -i 's/APP_NAME=.*/APP_NAME=${{ vars.APP_NAME }}/' .env
+            sed -i 's/APP_TIMEZONE=.*/APP_TIMEZONE=${{ vars.APP_TIMEZONE }}/' .env
             sed -i 's/APP_ENV=.*/APP_ENV=production/' .env
             sed -i 's/APP_DEBUG=.*/APP_DEBUG=false/' .env
             sed -i 's/APP_URL=.*/APP_URL=${{ vars.APP_URL }}/' .env
