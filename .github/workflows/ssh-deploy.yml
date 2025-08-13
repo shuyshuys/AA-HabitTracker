@@ -14,58 +14,7 @@ jobs:
     # Menggunakan runner Ubuntu terbaru
     runs-on: ubuntu-latest
     steps:
-      # Step 1: Mengunduh source code dari repository
-      # - name: Checkout code
-      #   uses: actions/checkout@v2
-
-      # Step 2: Setup environment PHP versi 8.3
-      # - name: Setup PHP
-      #   uses: shivammathur/setup-php@v2
-      #   with:
-      #     php-version: '8.3'
-
-      # Step 3: Membuat file .env dari template .env.example
-      # - name: Create .env
-      #   run: cp .env.example .env
-
-       # Step 3.1: Update database configuration in .env
-      # - name: Configure Database Environment
-      #   run: |
-      #     # Update database connection settings
-      #     sed -i 's/DB_CONNECTION=.*/DB_CONNECTION=mysql/' .env
-      #     sed -i 's/# DB_HOST=.*/DB_HOST=${{ secrets.DB_HOST }}/' .env
-      #     sed -i 's/# DB_PORT=.*/DB_PORT=${{ secrets.DB_PORT }}/' .env
-      #     sed -i 's/# DB_DATABASE=.*/DB_DATABASE=${{ secrets.DB_DATABASE }}/' .env
-      #     sed -i 's/# DB_USERNAME=.*/DB_USERNAME=${{ secrets.DB_USERNAME }}/' .env
-      #     sed -i 's/# DB_PASSWORD=.*/DB_PASSWORD=${{ secrets.DB_PASSWORD }}/' .env
-          
-      #     # Update other environment variables if needed
-      #     sed -i 's/APP_ENV=.*/APP_ENV=production/' .env
-      #     sed -i 's/APP_DEBUG=.*/APP_DEBUG=false/' .env
-      #     sed -i 's/APP_URL=.*/APP_URL=${{ vars.APP_URL }}/' .env
-
-      # Step 4: Install dependensi PHP menggunakan Composer
-      # Flag yang digunakan untuk instalasi yang bersih dan cepat
-      # - name: Install composer Dependencies
-      #   run: composer install -q --no-ansi --no-interaction --no-scripts --no-progress --prefer-dist
-
-      # Step 5: Generate application key Laravel untuk enkripsi
-      # - name: Set Application Encryption Key
-      #   run: php artisan key:generate --ansi
-
-      # Step 6: Membuat symbolic link untuk storage Laravel
-      # - name: Create Storage Link
-      #   run: php artisan storage:link
-
-      # Step 7: Menjalankan migrasi database
-      # - name: Run Migrations
-      #   run: php artisan migrate --force
-
-      # Step 8: (Commented out) Menjalankan test suite
-      #      - name: Run Tests
-      #        run: php artisan test
-
-      # Step 9: Deploy ke server menggunakan SSH
+      # Step 1: Deploy ke server menggunakan SSH
       - name: Deploy PHP to Server
         # Hanya jalankan jika semua step sebelumnya berhasil
         if: ${{ success() }}
@@ -115,6 +64,8 @@ jobs:
             php artisan view:cache
             
             # Final permission fix
+            sudo su - root -c "
             chown -R www-data:www-data /var/www/${{ vars.WEBSITE_FOLDER }}
             chmod -R 775 /var/www/${{ vars.WEBSITE_FOLDER }}/storage
             chmod -R 775 /var/www/${{ vars.WEBSITE_FOLDER }}/bootstrap/cache
+            "
