@@ -87,3 +87,7 @@ jobs:
             php artisan config:cache               # Cache konfigurasi untuk performa
             php artisan route:cache                # Cache routing untuk performa
             php artisan view:cache                 # Cache view untuk performa
+            # Fix permissions setelah deployment
+            sudo chown -R www-data:www-data /var/www/${{ vars.WEBSITE_FOLDER }}
+            sudo chmod -R 775 /var/www/${{ vars.WEBSITE_FOLDER }}/storage
+            sudo chmod -R 775 /var/www/${{ vars.WEBSITE_FOLDER }}/bootstrap/cache
