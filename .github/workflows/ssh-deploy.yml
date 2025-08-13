@@ -15,51 +15,51 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       # Step 1: Mengunduh source code dari repository
-      - name: Checkout code
-        uses: actions/checkout@v2
+      # - name: Checkout code
+      #   uses: actions/checkout@v2
 
       # Step 2: Setup environment PHP versi 8.3
-      - name: Setup PHP
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.3'
+      # - name: Setup PHP
+      #   uses: shivammathur/setup-php@v2
+      #   with:
+      #     php-version: '8.3'
 
       # Step 3: Membuat file .env dari template .env.example
-      - name: Create .env
-        run: cp .env.example .env
+      # - name: Create .env
+      #   run: cp .env.example .env
 
        # Step 3.1: Update database configuration in .env
-      - name: Configure Database Environment
-        run: |
-          # Update database connection settings
-          sed -i 's/DB_CONNECTION=.*/DB_CONNECTION=mysql/' .env
-          sed -i 's/# DB_HOST=.*/DB_HOST=${{ secrets.DB_HOST }}/' .env
-          sed -i 's/# DB_PORT=.*/DB_PORT=${{ secrets.DB_PORT }}/' .env
-          sed -i 's/# DB_DATABASE=.*/DB_DATABASE=${{ secrets.DB_DATABASE }}/' .env
-          sed -i 's/# DB_USERNAME=.*/DB_USERNAME=${{ secrets.DB_USERNAME }}/' .env
-          sed -i 's/# DB_PASSWORD=.*/DB_PASSWORD=${{ secrets.DB_PASSWORD }}/' .env
+      # - name: Configure Database Environment
+      #   run: |
+      #     # Update database connection settings
+      #     sed -i 's/DB_CONNECTION=.*/DB_CONNECTION=mysql/' .env
+      #     sed -i 's/# DB_HOST=.*/DB_HOST=${{ secrets.DB_HOST }}/' .env
+      #     sed -i 's/# DB_PORT=.*/DB_PORT=${{ secrets.DB_PORT }}/' .env
+      #     sed -i 's/# DB_DATABASE=.*/DB_DATABASE=${{ secrets.DB_DATABASE }}/' .env
+      #     sed -i 's/# DB_USERNAME=.*/DB_USERNAME=${{ secrets.DB_USERNAME }}/' .env
+      #     sed -i 's/# DB_PASSWORD=.*/DB_PASSWORD=${{ secrets.DB_PASSWORD }}/' .env
           
-          # Update other environment variables if needed
-          sed -i 's/APP_ENV=.*/APP_ENV=production/' .env
-          sed -i 's/APP_DEBUG=.*/APP_DEBUG=false/' .env
-          sed -i 's/APP_URL=.*/APP_URL=${{ vars.APP_URL }}/' .env
+      #     # Update other environment variables if needed
+      #     sed -i 's/APP_ENV=.*/APP_ENV=production/' .env
+      #     sed -i 's/APP_DEBUG=.*/APP_DEBUG=false/' .env
+      #     sed -i 's/APP_URL=.*/APP_URL=${{ vars.APP_URL }}/' .env
 
       # Step 4: Install dependensi PHP menggunakan Composer
       # Flag yang digunakan untuk instalasi yang bersih dan cepat
-      - name: Install composer Dependencies
-        run: composer install -q --no-ansi --no-interaction --no-scripts --no-progress --prefer-dist
+      # - name: Install composer Dependencies
+      #   run: composer install -q --no-ansi --no-interaction --no-scripts --no-progress --prefer-dist
 
       # Step 5: Generate application key Laravel untuk enkripsi
-      - name: Set Application Encryption Key
-        run: php artisan key:generate --ansi
+      # - name: Set Application Encryption Key
+      #   run: php artisan key:generate --ansi
 
       # Step 6: Membuat symbolic link untuk storage Laravel
-      - name: Create Storage Link
-        run: php artisan storage:link
+      # - name: Create Storage Link
+      #   run: php artisan storage:link
 
       # Step 7: Menjalankan migrasi database
-      - name: Run Migrations
-        run: php artisan migrate --force
+      # - name: Run Migrations
+      #   run: php artisan migrate --force
 
       # Step 8: (Commented out) Menjalankan test suite
       #      - name: Run Tests
@@ -79,15 +79,42 @@ jobs:
           passphrase: ${{ secrets.SSH_PASSPHRASE }} # Passphrase untuk private key (jika ada)
           # Script yang akan dijalankan di server
           script: |
-            cd /var/www/${{ vars.WEBSITE_FOLDER }}  # Pindah ke direktori website
-            git checkout main                        # Pastikan di branch main
-            git pull                                # Pull perubahan terbaru
-            composer install                        # Install/update dependensi
-            php artisan migrate --force            # Jalankan migrasi database
-            php artisan config:cache               # Cache konfigurasi untuk performa
-            php artisan route:cache                # Cache routing untuk performa
-            php artisan view:cache                 # Cache view untuk performa
-            # Fix permissions setelah deployment
-            sudo chown -R www-data:www-data /var/www/${{ vars.WEBSITE_FOLDER }}
-            sudo chmod -R 775 /var/www/${{ vars.WEBSITE_FOLDER }}/storage
-            sudo chmod -R 775 /var/www/${{ vars.WEBSITE_FOLDER }}/bootstrap/cache
+            # Switch to root untuk fix permissions
+            sudo su - root -c "
+              chown -R deploy:www-data /var/www/${{ vars.WEBSITE_FOLDER }}
+              chmod -R 755 /var/www/${{ vars.WEBSITE_FOLDER }}
+            "
+            
+            # Setup git safe directory
+            git config --global --add safe.directory /var/www/${{ vars.WEBSITE_FOLDER }}
+            
+            cd /var/www/${{ vars.WEBSITE_FOLDER }}
+            git checkout main
+            git pull
+            composer install --no-dev --optimize-autoloader
+
+            cp .env.example .env
+            php artisan key:generate --ansi
+
+            # Update database configuration in .env
+            sed -i 's/DB_CONNECTION=.*/DB_CONNECTION=mysql/' .env
+            sed -i 's/# DB_HOST=.*/DB_HOST=${{ secrets.DB_HOST }}/' .env
+            sed -i 's/# DB_PORT=.*/DB_PORT=${{ secrets.DB_PORT }}/' .env
+            sed -i 's/# DB_DATABASE=.*/DB_DATABASE=${{ secrets.DB_DATABASE }}/' .env
+            sed -i 's/# DB_USERNAME=.*/DB_USERNAME=${{ secrets.DB_USERNAME }}/' .env
+            sed -i 's/# DB_PASSWORD=.*/DB_PASSWORD=${{ secrets.DB_PASSWORD }}/' .env
+            
+            # Update other environment variables if needed
+            sed -i 's/APP_ENV=.*/APP_ENV=production/' .env
+            sed -i 's/APP_DEBUG=.*/APP_DEBUG=false/' .env
+            sed -i 's/APP_URL=.*/APP_URL=${{ vars.APP_URL }}/' .env
+
+            php artisan migrate --force
+            php artisan config:cache
+            php artisan route:cache
+            php artisan view:cache
+            
+            # Final permission fix
+            chown -R www-data:www-data /var/www/${{ vars.WEBSITE_FOLDER }}
+            chmod -R 775 /var/www/${{ vars.WEBSITE_FOLDER }}/storage
+            chmod -R 775 /var/www/${{ vars.WEBSITE_FOLDER }}/bootstrap/cache
