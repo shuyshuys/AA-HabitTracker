@@ -1,42 +1,88 @@
+# Nama workflow yang akan muncul di GitHub Actions
 name: SSH Deploy Workflow
+# Deskripsi workflow untuk memberikan informasi tentang fungsinya
 description: Deploys the project to a remote server via SSH using rsync.
-env:
-  VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
-  WEBSITE_FOLDER: 'your-website-folder' # Replace with your actual website folder name
 
+# Trigger workflow - akan berjalan ketika ada push ke branch main
 on:
   push:
     branches: [main]
+
+# Definisi job yang akan dijalankan
 jobs:
   build:
+    # Menggunakan runner Ubuntu terbaru
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions/setup-node@v3
+      # Step 1: Mengunduh source code dari repository
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      # Step 2: Setup environment PHP versi 8.3
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
         with:
-          node-version: 22
-      - name: Install node dependencies
-        run: npm ci
-      - name: Setup Project
-        env:
-          VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
+          php-version: '8.3'
+
+      # Step 3: Membuat file .env dari template .env.example
+      - name: Create .env
+        run: cp .env.example .env
+
+       # Step 3.1: Update database configuration in .env
+      - name: Configure Database Environment
         run: |
-          npm run build
-      - name: Delete old build files
+          # Update database connection settings
+          sed -i 's/DB_CONNECTION=.*/DB_CONNECTION=mysql/' .env
+          sed -i 's/DB_HOST=.*/DB_HOST=${{ secrets.DB_HOST }}/' .env
+          sed -i 's/DB_PORT=.*/DB_PORT=${{ secrets.DB_PORT }}/' .env
+          sed -i 's/DB_DATABASE=.*/DB_DATABASE=${{ secrets.DB_DATABASE }}/' .env
+          sed -i 's/DB_USERNAME=.*/DB_USERNAME=${{ secrets.DB_USERNAME }}/' .env
+          sed -i 's/DB_PASSWORD=.*/DB_PASSWORD=${{ secrets.DB_PASSWORD }}/' .env
+          
+          # Update other environment variables if needed
+          sed -i 's/APP_ENV=.*/APP_ENV=production/' .env
+          sed -i 's/APP_DEBUG=.*/APP_DEBUG=false/' .env
+          sed -i 's/APP_URL=.*/APP_URL=${{ vars.APP_URL }}/' .env
+
+      # Step 4: Install dependensi PHP menggunakan Composer
+      # Flag yang digunakan untuk instalasi yang bersih dan cepat
+      - name: Install composer Dependencies
+        run: composer install -q --no-ansi --no-interaction --no-scripts --no-progress --prefer-dist
+
+      # Step 5: Generate application key Laravel untuk enkripsi
+      - name: Set Application Encryption Key
+        run: php artisan key:generate --ansi
+
+      # Step 6: Membuat symbolic link untuk storage Laravel
+      - name: Create Storage Link
+        run: php artisan storage:link
+
+      # Step 7: Menjalankan migrasi database
+      - name: Run Migrations
+        run: php artisan migrate --force
+
+      # Step 8: (Commented out) Menjalankan test suite
+      #      - name: Run Tests
+      #        run: php artisan test
+
+      # Step 9: Deploy ke server menggunakan SSH
+      - name: Deploy PHP to Server
+        # Hanya jalankan jika semua step sebelumnya berhasil
+        if: ${{ success() }}
         uses: appleboy/ssh-action@master
         with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USERNAME }}
-          port: ${{ secrets.SSH_PORT }}
-          key: ${{ secrets.SSH_KEY }}
+          # Konfigurasi koneksi SSH menggunakan GitHub Secrets
+          host: ${{ secrets.SSH_HOST }}           # IP/hostname server
+          username: ${{ secrets.SSH_USERNAME }}   # Username SSH
+          port: ${{ secrets.SSH_PORT }}          # Port SSH (biasanya 22)
+          key: ${{ secrets.SSH_KEY }}            # Private key SSH
+          # Script yang akan dijalankan di server
           script: |
-            sudo find /var/www/${{ vars.WEBSITE_FOLDER }} -mindepth 1 ! -name '.htaccess' -delete
-      - name: Install SSH key inside action runner
-        run: |
-          mkdir -p ~/.ssh/
-          echo "${{ secrets.SSH_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -t rsa -p ${{ secrets.SSH_PORT }} ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
-      - name: Copy Build Files to Target Server
-        run: |
-          rsync -r -e "ssh -p ${{ secrets.SSH_PORT }}" ${{ github.workspace }}/dist/ ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }}:/var/www/${{ vars.WEBSITE_FOLDER }}/
+            cd /var/www/${{ vars.WEBSITE_FOLDER }}  # Pindah ke direktori website
+            git checkout main                        # Pastikan di branch main
+            git pull                                # Pull perubahan terbaru
+            composer install                        # Install/update dependensi
+            php artisan migrate --force            # Jalankan migrasi database
+            php artisan config:cache               # Cache konfigurasi untuk performa
+            php artisan route:cache                # Cache routing untuk performa
+            php artisan view:cache                 # Cache view untuk performa
